@@ -7,13 +7,16 @@ There are already open-source multi-platform tools related to the DVRs and NVRs 
 
 # Milestones
 - [ ] Research relevant technologies, other projects, potential libraries
-- [ ] Make a GUI app that can connect and login to a real NVR system (NBD8016S-XC board will be used for testing)
+- [ ] Make a console app that can connect and login to a real NVR system
+- [ ] Make a GUI app that can connect and login to a real NVR system
 - [ ] Add video display from the NVR (only current video, no history)
 - [ ] Add history search, playback and export
 - [ ] Allow editing NVR settings
 - [ ] Add a daemon to store alerts from the NVR; browse history using these alerts
 
-# Resources
+For testing purposes, I will be mainly using a NBD8016S-XC board (available for cheap from AliExpress).
+
+# Resources, relevant other projects, potential libraries
 - [Python-dvr](https://github.com/madmaxoft/python-dvr) - Python library for talking the Sofia protocol.
 - [SofiaCtl](https://github.com/madmaxoft/sofiactl) - Perl library for talking the Sofia protocol.
 - [IPCTimeLapse](https://github.com/charmyin/IPCTimeLapse) - Set of shell scripts and simple programs talking the Sofia protocol.
