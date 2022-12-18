@@ -6,7 +6,7 @@ This project aims to replace the CMS and VMS software provided with cheap chines
 There are already open-source multi-platform tools related to the DVRs and NVRs that have dissected most of the protocol used (Sofia / NETsurveillance), but those provide no easy-to-use GUI and are not meant as a replacement of the manufacturer's software.
 
 # Milestones
-- [ ] Research relevant technologies, other projects, potential libraries
+- [X] Research relevant technologies, other projects, potential libraries
 - [ ] Make a console app that can connect and login to a real NVR system
 - [ ] Make a GUI app that can connect and login to a real NVR system
 - [ ] Add video display from the NVR (only current video, no history)
