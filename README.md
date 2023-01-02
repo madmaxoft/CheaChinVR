@@ -7,7 +7,9 @@ There are already open-source multi-platform tools related to the DVRs and NVRs 
 
 # Milestones
 - [X] Research relevant technologies, other projects, potential libraries
+- [ ] Make a simple simulator to test the protocol against
 - [ ] Make a console app that can connect and login to a real NVR system
+- [ ] Make a console app that will capture a part of video stream from a real NVR system into a file
 - [ ] Make a GUI app that can connect and login to a real NVR system
 - [ ] Add video display from the NVR (only current video, no history)
 - [ ] Add history search, playback and export
