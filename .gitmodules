@@ -1,0 +1,15 @@
+[submodule "Lib/NetSurveillancePp"]
+	path = Lib/NetSurveillancePp
+	url = https://github.com/madmaxoft/NetSurveillancePp
+[submodule "Lib/Asio"]
+	path = Lib/Asio
+	url = https://github.com/madmaxoft/Asio
+[submodule "Lib/Json"]
+	path = Lib/Json
+	url = https://github.com/madmaxoft/nlohmann-json
+[submodule "Lib/Fmt"]
+	path = Lib/Fmt
+	url = https://github.com/madmaxoft/fmt
+[submodule "Lib/SQLiteCpp"]
+	path = Lib/SQLiteCpp
+	url = https://github.com/madmaxoft/SQLiteCpp
