@@ -8,4 +8,4 @@ add_subdirectory(Fmt EXCLUDE_FROM_ALL)
 
 add_subdirectory(NetSurveillancePp)
 
-add_subdirectory(SQLiteCpp)
+add_subdirectory(SQLiteCpp EXCLUDE_FROM_ALL)
