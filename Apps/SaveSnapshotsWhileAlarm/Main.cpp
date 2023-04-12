@@ -25,12 +25,14 @@ struct MonitoredDevice
 	}
 };
 
+using MonitoredDevicePtr = std::unique_ptr<MonitoredDevice>;
+
 
 
 
 
 /** The devices that should be monitored for alarms. */
-std::vector<MonitoredDevice> gMonitoredDevices;
+std::vector<MonitoredDevicePtr> gMonitoredDevices;
 
 /** The name of the DB file where to store the snapshots.
 If empty, the snapshots are stored in the current folder. */
@@ -81,9 +83,9 @@ bool addMonitoredDevice(const std::string & aDeviceSpec)
 		hostName = aDeviceSpec.substr(idxAt + 1);
 	}
 
-	gMonitoredDevices.emplace_back(
+	gMonitoredDevices.push_back(std::make_unique<MonitoredDevice>(
 		std::move(hostName), port, std::move(userName), std::move(password)
-	);
+	));
 	return true;
 }
 
@@ -133,20 +135,11 @@ bool parseCommandLine(int aArgC, char ** aArgV)
 
 
 
-/** Called when connection to a single device is established, or an error occurs. */
-void onConnected(const std::error_code & aError)
-{
-}
-
-
-
-
-
 /** Called whenever an alarm event comes from a device.
 Saves a snapshot from the affected channel.
 TODO: A snapshot should be saved every second until the alarm goes out. */
 void onAlarm(
-	MonitoredDevice & aDevice,
+	MonitoredDevicePtr & aDevice,
 	const std::error_code & aError,
 	int aChannel,
 	bool aIsStart,
@@ -156,7 +149,7 @@ void onAlarm(
 {
 	if (aError)
 	{
-		std::cerr << fmt::format("Failed to monitor alarms on {}:{}: {}", aDevice.mHostName, aDevice.mPort, aError.message());
+		std::cerr << fmt::format("Failed to monitor alarms on {}:{}: {}", aDevice->mHostName, aDevice->mPort, aError.message());
 		return;
 	}
 	if (!aIsStart)
@@ -182,8 +175,8 @@ bool startMonitoring()
 	std::condition_variable cvFinished;
 	for (auto & dev: gMonitoredDevices)
 	{
-		dev.mRecorder = NetSurveillancePp::Recorder::create();
-		dev.mRecorder->connectAndLogin(dev.mHostName, dev.mPort, dev.mUserName, dev.mPassword,
+		dev->mRecorder = NetSurveillancePp::Recorder::create();
+		dev->mRecorder->connectAndLogin(dev->mHostName, dev->mPort, dev->mUserName, dev->mPassword,
 			[&hasFailed, &numLeft, &mtxFinished, &cvFinished, &dev](const std::error_code & aError)
 			{
 				{
@@ -191,14 +184,14 @@ bool startMonitoring()
 					numLeft -= 1;
 					if (aError)
 					{
-						std::cerr << fmt::format("Failed to connect to {}:{}: {}\n", dev.mHostName, dev.mPort, aError.message());\
+						std::cerr << fmt::format("Failed to connect to {}:{}: {}\n", dev->mHostName, dev->mPort, aError.message());\
 						hasFailed = true;
 						cvFinished.notify_all();
 						return;
 					}
 				}  // lock
 				using namespace std::placeholders;
-				dev.mRecorder->monitorAlarms(std::bind(&onAlarm, dev, _1, _2, _3, _4, _5));
+				dev->mRecorder->monitorAlarms(std::bind(&onAlarm, std::ref(dev), _1, _2, _3, _4, _5));
 			}
 		);
 	}
