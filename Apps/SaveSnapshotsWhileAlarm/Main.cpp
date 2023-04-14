@@ -1,6 +1,7 @@
 #include <iostream>
 #include "fmt/format.h"
 #include "Recorder.hpp"
+#include "Root.hpp"
 
 
 
@@ -54,7 +55,7 @@ bool addMonitoredDevice(const std::string & aDeviceSpec)
 		std::cerr << fmt::format("Invalid device spec '{}': No ':' after username found.\n", aDeviceSpec);
 		return false;
 	}
-	auto userName = aDeviceSpec.substr(0, idxColon - 1);
+	auto userName = aDeviceSpec.substr(0, idxColon);
 
 	// Parse the password:
 	auto idxAt = aDeviceSpec.find('@', idxColon + 1);
@@ -63,7 +64,7 @@ bool addMonitoredDevice(const std::string & aDeviceSpec)
 		std::cerr << fmt::format("Invalid device spec '{}': No '@' after password found.\n", aDeviceSpec);
 		return false;
 	}
-	auto password = aDeviceSpec.substr(idxColon + 1, idxAt - idxColon);
+	auto password = aDeviceSpec.substr(idxColon + 1, idxAt - idxColon - 1);
 
 	uint16_t port = 34567;
 	std::string hostName;
@@ -76,7 +77,7 @@ bool addMonitoredDevice(const std::string & aDeviceSpec)
 			std::cerr << fmt::format("Invalid device spec '{}': Failed to parse port number in '{}'.\n", aDeviceSpec, aDeviceSpec.substr(idxPortColon + 1));
 			return false;
 		}
-		hostName = aDeviceSpec.substr(idxAt + 1, idxPortColon - idxAt);
+		hostName = aDeviceSpec.substr(idxAt + 1, idxPortColon - idxAt - 1);
 	}
 	else
 	{
@@ -173,6 +174,7 @@ bool startMonitoring()
 	size_t numLeft = gMonitoredDevices.size();  // number of devices left to report their connection state
 	std::mutex mtxFinished;
 	std::condition_variable cvFinished;
+	std::cerr << fmt::format("Connecting to {} devices...\n", numLeft);
 	for (auto & dev: gMonitoredDevices)
 	{
 		dev->mRecorder = NetSurveillancePp::Recorder::create();
@@ -184,14 +186,16 @@ bool startMonitoring()
 					numLeft -= 1;
 					if (aError)
 					{
-						std::cerr << fmt::format("Failed to connect to {}:{}: {}\n", dev->mHostName, dev->mPort, aError.message());\
+						std::cerr << fmt::format("Failed to connect to {}:{}: {}\n", dev->mHostName, dev->mPort, aError.message());
 						hasFailed = true;
 						cvFinished.notify_all();
 						return;
 					}
+					std::cerr << fmt::format("Connected to {}:{}, starting alarm-monitoring.\n", dev->mHostName, dev->mPort);
 				}  // lock
 				using namespace std::placeholders;
 				dev->mRecorder->monitorAlarms(std::bind(&onAlarm, std::ref(dev), _1, _2, _3, _4, _5));
+				cvFinished.notify_all();
 			}
 		);
 	}
@@ -208,7 +212,7 @@ bool startMonitoring()
 		return false;
 	}
 
-	// TODO: Start monitoring alarms
+	std::cerr << "Connected to all and monitoring alarms.\n";
 	return true;
 }
 
@@ -228,5 +232,6 @@ int main(int aArgC, char ** aArgV)
 		std::cerr << "Failed to start monitoring.\n";
 		return 2;
 	}
+	NetSurveillancePp::Root::instance().ioContext().run();
 	return 0;
 }
