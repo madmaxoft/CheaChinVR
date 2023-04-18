@@ -239,12 +239,15 @@ void onAlarm(
 		// Remove the device's channel from the active channels:
 		std::cout << fmt::format("AlarmEnd: Device {}:{}, channel {}\n", aDevice->mHostName, aDevice->mPort, aChannel);
 		std::unique_lock<std::mutex> lg(gMtxActiveAlarms);
-		gActiveAlarms.erase(std::remove_if(gActiveAlarms.begin(), gActiveAlarms.end(),
-			[&aDevice, aChannel](const auto & aAlarm)
-			{
-				return (aAlarm.mDevice == aDevice) && (aAlarm.mChannel == aChannel);
-			}
-		));
+		if (!gActiveAlarms.empty())
+		{
+			gActiveAlarms.erase(std::remove_if(gActiveAlarms.begin(), gActiveAlarms.end(),
+				[&aDevice, aChannel](const auto & aAlarm)
+				{
+					return (aAlarm.mDevice == aDevice) && (aAlarm.mChannel == aChannel);
+				}
+			));
+		}
 	}
 }
 
