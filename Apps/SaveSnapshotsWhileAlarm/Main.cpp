@@ -164,8 +164,10 @@ void saveSnapshotData(std::shared_ptr<MonitoredDevice> aDevice, int aChannel, co
 	std::filesystem::create_directory(yearMonthStr);
 	std::filesystem::create_directory(dateStr);
 	auto fnam = fmt::format(
-		"{}/{:02d}_{:02d}_{:02d}_{}_{}_ch{}.jpg",
-		dateStr, tm->tm_hour, tm->tm_min, tm->tm_sec, aDevice->mHostName, aDevice->mPort, aChannel
+		"{}/{}_{}_ch{}_{:02d}_{:02d}_{:02d}.jpg",
+		dateStr,
+		aDevice->mHostName, aDevice->mPort, aChannel,
+		tm->tm_hour, tm->tm_min, tm->tm_sec
 	);
 	std::ofstream f;
 	f.open(fnam.c_str(), std::ofstream::binary | std::ofstream::out);
