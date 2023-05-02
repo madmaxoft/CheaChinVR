@@ -1,6 +1,7 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include "fmt/format.h"
 #include "Recorder.hpp"
 #include "Root.hpp"
@@ -34,6 +35,20 @@ struct ActiveAlarm
 {
 	MonitoredDevicePtr mDevice;
 	int mChannel;
+
+	/** The comparison operator, needed in order to make std::set<ActiveAlarm> possible. */
+	bool operator < (const ActiveAlarm & aOther) const
+	{
+		if (mDevice.get() < aOther.mDevice.get())
+		{
+			return true;
+		}
+		if (mDevice.get() > aOther.mDevice.get())
+		{
+			return false;
+		}
+		return (mChannel < aOther.mChannel);
+	}
 };
 
 
@@ -44,11 +59,18 @@ struct ActiveAlarm
 std::vector<MonitoredDevicePtr> gMonitoredDevices;
 
 /** All the alarms that are currently active (snapshots should be saved every second).
-Protected against multithreaded access by gMtxActiveAlarms. */
-std::vector<ActiveAlarm> gActiveAlarms;
+When a snapshot is requested, the item is moved to gBusyAlarms, so that another snapshot isn't requested until
+the first one finishes.
+Protected against multithreaded access by gMtxAlarms. */
+std::set<ActiveAlarm> gActiveAlarms;
+
+/** All the alarms that are currently busy (snapshots are being taken).
+After the snapshot is finished, these are moved back to gActiveAlarms.
+Protected against multithreaded access by gMtxAlarms. */
+std::set<ActiveAlarm> gBusyAlarms;
 
 /** The mutex protecting gActiveAlarms agains multithreaded access. */
-std::mutex gMtxActiveAlarms;
+std::mutex gMtxAlarms;
 
 /** The name of the DB file where to store the snapshots.
 If empty, the snapshots are stored in the current folder. */
@@ -200,6 +222,15 @@ void saveSnapshot(std::shared_ptr<MonitoredDevice> aDevice, int aChannel)
 			}
 
 			saveSnapshotData(aDevice, aChannel, aData, aSize);
+
+			// If the alarm is in gBusyAlarms, move it to gActiveAlarms:
+			std::unique_lock<std::mutex> lock(gMtxAlarms);
+			auto itr = gBusyAlarms.find({aDevice, aChannel});
+			if (itr != gBusyAlarms.cend())
+			{
+				gBusyAlarms.erase(itr);
+				gActiveAlarms.insert({aDevice, aChannel});
+			}
 		}
 	);
 }
@@ -230,24 +261,20 @@ void onAlarm(
 		saveSnapshot(aDevice, aChannel);
 
 		// Add the device's channel to the active alarms:
-		std::cout << fmt::format("AlarmStart: Device {}:{}, channel {}\n", aDevice->mHostName, aDevice->mPort, aChannel);
-		std::unique_lock<std::mutex> lg(gMtxActiveAlarms);
-		gActiveAlarms.push_back({aDevice, aChannel});
+		std::cout << fmt::format("AlarmStart: Device {}:{}, channel {}\n", aDevice->mHostName, aDevice->mPort, aChannel) << std::flush;
+		std::unique_lock<std::mutex> lg(gMtxAlarms);
+		if (gBusyAlarms.find({aDevice, aChannel}) == gBusyAlarms.cend())
+		{
+			gActiveAlarms.insert({aDevice, aChannel});
+		}
 	}
 	else
 	{
 		// Remove the device's channel from the active channels:
-		std::cout << fmt::format("AlarmEnd: Device {}:{}, channel {}\n", aDevice->mHostName, aDevice->mPort, aChannel);
-		std::unique_lock<std::mutex> lg(gMtxActiveAlarms);
-		if (!gActiveAlarms.empty())
-		{
-			gActiveAlarms.erase(std::remove_if(gActiveAlarms.begin(), gActiveAlarms.end(),
-				[&aDevice, aChannel](const auto & aAlarm)
-				{
-					return (aAlarm.mDevice == aDevice) && (aAlarm.mChannel == aChannel);
-				}
-			));
-		}
+		std::cout << fmt::format("AlarmEnd: Device {}:{}, channel {}\n", aDevice->mHostName, aDevice->mPort, aChannel) << std::flush;
+		std::unique_lock<std::mutex> lg(gMtxAlarms);
+		gActiveAlarms.erase({aDevice, aChannel});
+		gBusyAlarms.erase({aDevice, aChannel});
 	}
 }
 
@@ -319,14 +346,19 @@ void onTimer (asio::steady_timer & aTimer, const std::error_code & aError)
 		return;
 	}
 
-	// Get a copy of all the active alarms
-	std::vector<ActiveAlarm> activeAlarms;
+	// For each active alarm, move it to gBusyAlarms and request a snapshot:
+	std::set<ActiveAlarm> activeAlarms;
 	{
-		std::unique_lock<std::mutex> lock(gMtxActiveAlarms);
+		std::unique_lock<std::mutex> lock(gMtxAlarms);
 		activeAlarms = gActiveAlarms;
 	}
 	for (const auto & aa: activeAlarms)
 	{
+		{
+			std::unique_lock<std::mutex> lock(gMtxAlarms);
+			gActiveAlarms.erase(aa);
+			gBusyAlarms.insert(aa);
+		}  // lock - gMtxAlarms
 		saveSnapshot(aa.mDevice, aa.mChannel);
 	}
 
