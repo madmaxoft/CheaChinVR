@@ -158,7 +158,7 @@ void saveSnapshotData(std::shared_ptr<MonitoredDevice> aDevice, int aChannel, co
 	auto tt = std::time(nullptr);
 	auto tm = std::localtime(&tt);
 	auto yearStr = fmt::format("{:04d}", tm->tm_year + 1900);
-	auto yearMonthStr = fmt::format("{}/{:02d}", yearStr, tm->tm_mon);
+	auto yearMonthStr = fmt::format("{}/{:02d}", yearStr, tm->tm_mon + 1);
 	auto dateStr = fmt::format("{}/{:02d}", yearMonthStr, tm->tm_mday);
 	std::filesystem::create_directory(yearStr);
 	std::filesystem::create_directory(yearMonthStr);
